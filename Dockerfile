@@ -3,21 +3,20 @@ FROM node:20-bullseye AS builder
 WORKDIR /app
 
 COPY package*.json ./
-# devDependencies を含めてインストール
+# devDependencies（vite など）も入れる
 RUN npm ci
 
 # 全ソースをコピーしてビルド
 COPY . .
-# ここで vite 等を使ったビルドが走る
 RUN npm run build
 
-# ---- runner: 本番用に最小限で起動 ----
+# ---- runner: 本番起動用 ----
 FROM node:20-bullseye AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# production 依存のみインストール
+# 本番依存だけ入れる
 COPY package*.json ./
 RUN npm ci --omit=dev
 
