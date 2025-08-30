@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "salon-booking-manager",
+  "compatibility_date": "2025-08-16",
+  "pages_build_output_dir": "./dist",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "triggers": {
+    "crons": [
+      "*/30 9-21 * * *"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "salon-booking-production",
+      "database_id": "local-db"
+    }
+  ],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "DEFAULT_DURATION_MIN": "60",
+    "SB_STAFF_NAME": "大橋 勇介",
+    "SECRETBOX_KEY": "79TrJgqHx8kYWxS29tn8hKdFytQM1yJRAW4VoZrbQvw=",
+    "GOOGLE_CLIENT_ID": "your-client-id.apps.googleusercontent.com",
+    "GOOGLE_CLIENT_SECRET": "your-client-secret",
+    "GOOGLE_REDIRECT_URI": "http://localhost:3000/oauth/google/callback",
+    "SB_USER": "demo_user",
+    "SB_PASS": "demo_password",
+    "SB_STORAGE_STATE": "./storage/salonboard.json",
+    "GMAIL_MODE": "live",
+    "GMAIL_DEFAULT_QUERY": "subject:(ホットペッパービューティー) newer_than:1d"
+  }
+}
