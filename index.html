@@ -1,12 +1,173 @@
 <!doctype html>
 <html lang="ja">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Salon App</title>
+    <title>Salon App – 週カレンダー</title>
+    <style>
+      :root { --grid-row-h: 34px; --gap: 6px; --line:#e9eef3; --book:#d1f5d3; --danger:#ffd7d7; }
+      body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:#fafcff; color:#111; }
+      header { display:flex; align-items:center; gap:8px; padding:14px 16px; border-bottom:1px solid #eef2f7; position:sticky; top:0; background:#fff; }
+      header h1 { font-size:16px; margin:0 8px 0 0; }
+      header .spacer { flex:1; }
+      button { padding:6px 10px; border:1px solid #d6dbe2; background:#fff; border-radius:8px; cursor:pointer; }
+      button:hover { background:#f6f8fb; }
+
+      .wrap { display:grid; grid-template-columns: 84px 1fr; gap: var(--gap); padding:14px; }
+      .times { display:grid; grid-auto-rows: var(--grid-row-h); gap: var(--gap); }
+      .times .slot { text-align:right; padding-right:8px; color:#6b7683; font-size:12px; }
+
+      .board { display:grid; grid-template-columns: repeat(7, 1fr); gap: var(--gap); }
+      .daycol { display:grid; grid-auto-rows: var(--grid-row-h); gap: var(--gap); }
+      .cell { border:1px solid var(--line); border-radius:8px; background:#fff; }
+      .cell.has { background: var(--book); border-color:#b4e9b6; }
+      .cell .label { padding:6px 8px; font-size:12px; }
+      .cell .small { color:#3b3b3b; opacity:.8; font-size:11px; }
+
+      .dayshead { display:grid; grid-template-columns: 84px repeat(7, 1fr); gap: var(--gap); padding: 10px 14px 0; color:#3a4451; }
+      .dayshead .d { text-align:center; font-size:12px; }
+      .dayshead .d strong { display:block; font-weight:600; }
+      .note { padding:10px 16px; color:#5a6572; font-size:12px; }
+      .legend { display:flex; gap:10px; align-items:center; }
+      .dot { width:12px; height:12px; border-radius:3px; display:inline-block; vertical-align:middle; margin-right:6px; border:1px solid #b4e9b6; background:var(--book); }
+    </style>
   </head>
   <body>
-    <h1>It works 🎉</h1>
-    <p>Vite build & Render deploy OK.</p>
+    <header>
+      <h1>週カレンダー</h1>
+      <button id="prev">← 前週</button>
+      <button id="next">次週 →</button>
+      <div class="spacer"></div>
+      <div id="weekLabel"></div>
+    </header>
+
+    <div class="dayshead" id="daysHead">
+      <div></div>
+      <!-- ここに曜日ヘッダが入る -->
+    </div>
+
+    <div class="wrap">
+      <div class="times" id="times"></div>
+      <div class="board" id="board"></div>
+    </div>
+
+    <div class="note">
+      <div class="legend"><span class="dot"></span>緑＝予約あり（サンプル）。まずは表示が出ればOK！</div>
+    </div>
+
+    <script type="module">
+      const slotStart = 9;          // 9:00開始
+      const slotEnd   = 21;         // 21:00終了（20:30が最終枠）
+      const stepMin   = 30;         // 30分刻み
+      const timesEl   = document.getElementById('times');
+      const boardEl   = document.getElementById('board');
+      const headEl    = document.getElementById('daysHead');
+      const weekLabel = document.getElementById('weekLabel');
+      const prevBtn   = document.getElementById('prev');
+      const nextBtn   = document.getElementById('next');
+
+      const pad = n => String(n).padStart(2,'0');
+      const toISO = d => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+      const fromISO = s => { const [y,m,dd]=s.split('-').map(Number); return new Date(y, m-1, dd); };
+      const getMonday = (d) => { const x = new Date(d); const day = (x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; };
+
+      function buildTimeSlots(){
+        const out=[];
+        for(let h=slotStart; h<slotEnd; h++){
+          out.push(pad(h)+":00");
+          out.push(pad(h)+":30");
+        }
+        return out;
+      }
+
+      function renderTimes(times){
+        timesEl.innerHTML = '';
+        times.forEach(t=>{
+          const div = document.createElement('div');
+          div.className = 'slot';
+          div.textContent = t;
+          timesEl.appendChild(div);
+        });
+      }
+
+      function renderHead(monday){
+        headEl.innerHTML = '<div></div>'; // 左の空き
+        const labels = ["月","火","水","木","金","土","日"];
+        for(let i=0;i<7;i++){
+          const d = new Date(monday); d.setDate(d.getDate()+i);
+          const div = document.createElement('div');
+          div.className = 'd';
+          div.innerHTML = `<strong>${labels[i]}</strong>${d.getMonth()+1}/${d.getDate()}`;
+          headEl.appendChild(div);
+        }
+        const end = new Date(monday); end.setDate(end.getDate()+6);
+        weekLabel.textContent = `${monday.getFullYear()}/${monday.getMonth()+1}/${monday.getDate()} 〜 ${end.getFullYear()}/${end.getMonth()+1}/${end.getDate()}`;
+      }
+
+      function renderEmptyBoard(times){
+        boardEl.innerHTML = '';
+        // 7列×times.length行の空セルを構築
+        for(let c=0;c<7;c++){
+          const col = document.createElement('div');
+          col.className = 'daycol';
+          for(let r=0;r<times.length;r++){
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            col.appendChild(cell);
+          }
+          boardEl.appendChild(col);
+        }
+      }
+
+      function placeBookings(mondayISO, times, bookings){
+        // いったん全クリア
+        document.querySelectorAll('.cell').forEach(el=>{
+          el.classList.remove('has');
+          el.innerHTML = '';
+        });
+        const base = fromISO(mondayISO);
+
+        bookings.forEach(b=>{
+          // day列を計算
+          const d  = fromISO(b.date);
+          const col = Math.floor((d - base)/86400000);
+          if(col < 0 || col > 6) return;
+
+          const [hh,mm] = b.start.split(':').map(Number);
+          const startMinutes = hh*60 + mm;
+          const baseMinutes  = slotStart*60;
+          const row = Math.floor((startMinutes - baseMinutes)/stepMin);
+          if(row < 0 || row >= times.length) return;
+
+          const cell = document.querySelector(`.daycol:nth-child(${col+1}) .cell:nth-child(${row+1})`);
+          if(!cell) return;
+          cell.classList.add('has');
+          cell.innerHTML = `<div class="label"><div>${b.title ?? '予約'}</div><div class="small">${b.start} / ${b.durationMin ?? 60}分</div></div>`;
+        });
+      }
+
+      async function loadAndRender(monday){
+        const times = buildTimeSlots();
+        renderTimes(times);
+        renderHead(monday);
+        renderEmptyBoard(times);
+
+        const weekISO = toISO(monday);
+        // サーバーから週の予約を取得（無ければサンプルが来る）
+        const res = await fetch(`/api/reservations?week=${weekISO}`).catch(()=>null);
+        let bookings = [];
+        if(res && res.ok){
+          bookings = await res.json();
+        }
+        placeBookings(weekISO, times, bookings);
+      }
+
+      let currentMonday = getMonday(new Date());
+      prevBtn.onclick = ()=>{ currentMonday.setDate(currentMonday.getDate()-7); loadAndRender(currentMonday); };
+      nextBtn.onclick = ()=>{ currentMonday.setDate(currentMonday.getDate()+7); loadAndRender(currentMonday); };
+      loadAndRender(currentMonday);
+    </script>
   </body>
 </html>
