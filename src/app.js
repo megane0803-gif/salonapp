@@ -1,67 +1,61 @@
-const API_BASE_URL = '/api/reservations';
+// CSSもここでimport（Vite方式）
+import './style.css';
 
-// 一覧取得
+// API設定
+const API_BASE_URL = '/api';
+const ENDPOINTS = {
+  reservations: `${API_BASE_URL}/reservations`
+};
+
+// --- 予約一覧を取得して表示 ---
 async function fetchReservations() {
-  const res = await fetch(API_BASE_URL);
-  return await res.json();
+  try {
+    const response = await fetch(ENDPOINTS.reservations);
+    if (!response.ok) throw new Error(`サーバーエラー: ${response.status}`);
+    const data = await response.json();
+    renderReservations(data);
+  } catch (err) {
+    console.error('予約取得エラー:', err);
+    document.getElementById('reservations').innerHTML = `<p style="color:red;">予約を読み込めませんでした</p>`;
+  }
 }
 
-// 予約作成
-async function createReservation(data) {
-  const res = await fetch(API_BASE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  return await res.json();
-}
-
-// 一覧表示
-function renderReservations(list) {
-  const tbody = document.getElementById('reservationsTbody');
-  tbody.innerHTML = '';
-  if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4">予約がありません</td></tr>`;
+// --- 表示処理 ---
+function renderReservations(items) {
+  const container = document.getElementById('reservations');
+  if (!items.length) {
+    container.innerHTML = `<p>現在、予約はありません</p>`;
     return;
   }
-  list.forEach(r => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${r.customer_name}</td>
-      <td>${r.service}</td>
-      <td>${new Date(r.start_time).toLocaleString()}</td>
-      <td>${new Date(r.end_time).toLocaleString()}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+
+  container.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>お名前</th>
+          <th>メニュー</th>
+          <th>開始</th>
+          <th>終了</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map(r => `
+          <tr>
+            <td>${r.customer_name}</td>
+            <td>${r.service}</td>
+            <td>${new Date(r.start_time).toLocaleString()}</td>
+            <td>${new Date(r.end_time).toLocaleString()}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
-// 初期化
-async function init() {
-  // 初回ロード
-  const list = await fetchReservations();
-  renderReservations(list);
-
-  // フォーム送信
-  document.getElementById('reserveForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const data = {
-      customer_name: document.getElementById('customerName').value,
-      service: document.getElementById('service').value,
-      start_time: document.getElementById('startTime').value,
-      end_time: document.getElementById('endTime').value,
-    };
-    await createReservation(data);
-    const list = await fetchReservations();
-    renderReservations(list);
-    e.target.reset();
-  });
-
-  // 更新ボタン
-  document.getElementById('refreshBtn').addEventListener('click', async () => {
-    const list = await fetchReservations();
-    renderReservations(list);
-  });
+// --- 初期化 ---
+function init() {
+  fetchReservations();
 }
 
-init();
+// ページ読み込み後に実行
+document.addEventListener('DOMContentLoaded', init);
