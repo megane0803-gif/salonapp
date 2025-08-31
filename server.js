@@ -1,59 +1,84 @@
+// server.js
 import express from "express";
-import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+import { Pool } from "pg";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const distPath = path.join(process.cwd(), "dist");
-const hasDist = fs.existsSync(path.join(distPath, "index.html"));
+// ---- DB 接続（Neon）----
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL, // Render の環境変数に入れる
+  ssl: { rejectUnauthorized: false },         // Neon は SSL 必須
+});
+
+// JSON 受け取り
+app.use(express.json());
 
 // ヘルスチェック
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// 週の予約（まずはダミーデータでOK）
-app.get("/api/reservations", (req, res) => {
-  // ?week=YYYY-MM-DD（月曜日想定）
-  const weekISO = req.query.week;
-  const base = weekISO ? new Date(weekISO) : mondayOf(new Date());
-  const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
-
-  // 今は固定サンプル（HPB/LiMEを模した表示）。後でGmailやLIME連携で置き換え。
-  const d0 = new Date(base);                      // 月
-  const d2 = new Date(base); d2.setDate(d2.getDate()+2); // 水
-  const d5 = new Date(base); d5.setDate(d5.getDate()+5); // 土
-
-  const sample = [
-    { date: iso(d0), start: "10:00", durationMin: 60, title: "HPB: 田中さま" },
-    { date: iso(d2), start: "13:30", durationMin: 90, title: "LiME: 佐藤さま" },
-    { date: iso(d5), start: "17:00", durationMin: 60, title: "TEL: 山本さま" }
-  ];
-  res.json(sample);
+// 予約一覧（最新順）
+app.get("/api/reservations", async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, customer_name, service, start_time, end_time, created_at
+       FROM reservations
+       ORDER BY start_time DESC
+       LIMIT 200`
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "failed_to_fetch" });
+  }
 });
 
-function mondayOf(d){
-  const x = new Date(d); const day = (x.getDay()+6)%7;
-  x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x;
-}
+// 予約作成
+app.post("/api/reservations", async (req, res) => {
+  try {
+    const { customer_name, service, start_time, end_time } = req.body;
+    if (!customer_name || !service || !start_time || !end_time) {
+      return res.status(400).json({ error: "missing_fields" });
+    }
+    const q = `
+      INSERT INTO reservations (customer_name, service, start_time, end_time)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *`;
+    const { rows } = await pool.query(q, [
+      customer_name,
+      service,
+      start_time, // ISO文字列でOK（例: "2025-09-01T10:00:00+09:00"）
+      end_time,
+    ]);
+    res.status(201).json(rows[0]);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "failed_to_insert" });
+  }
+});
 
-// dist があるならビルド成果物を配信（本番想定）
-if (hasDist) {
-  app.use(express.static("dist"));
-  app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
-} else {
-  // dist が無い場合でも最低限のページを返す（開発・応急用）
-  app.get("*", (_req, res) => {
-    res.type("html").send(`
-      <!doctype html>
-      <html><head><meta charset="utf-8"><title>Salon App</title></head>
-      <body>
-        <h2>Server is up 🟢</h2>
-        <p>フロントは <code>index.html</code> を root に置いて再デプロイしてください。</p>
-        <p>ヘルスチェック: <a href="/api/health">/api/health</a></p>
-      </body></html>
-    `);
-  });
-}
+// （お好み）予約削除
+app.delete("/api/reservations/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`DELETE FROM reservations WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "failed_to_delete" });
+  }
+});
+
+// 静的ファイル（/dist をトップで配信）
+app.use(express.static(path.join(__dirname, "dist")));
+app.get("*", (_req, res) =>
+  res.sendFile(path.join(__dirname, "dist", "index.html"))
+);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
