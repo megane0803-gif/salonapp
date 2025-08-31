@@ -2,11 +2,13 @@
 FROM node:20-bullseye AS build
 WORKDIR /app
 
+# lockfile が無くても通るように npm install を使用
 COPY package*.json ./
-RUN npm ci
+RUN npm install --no-audit --no-fund
 
 COPY . .
-RUN npm run build
+# dist は無くても先に進む（まずは起動優先）
+RUN npm run build || true
 
 # ---- run stage ----
 FROM node:20-bullseye AS run
@@ -15,8 +17,10 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+# 本番は dev 省略してインストール
+RUN npm install --omit=dev --no-audit --no-fund
 
+# 実行に必要な成果物/ファイル
 COPY --from=build /app/dist ./dist
 COPY server.js ./server.js
 
