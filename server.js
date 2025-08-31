@@ -3,10 +3,10 @@ import express from "express";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// dist フォルダ（vite build の出力先）を配信
+// dist フォルダを静的配信
 app.use(express.static("dist"));
 
-// ルートアクセス
+// SPA想定で全ルートに index.html を返す
 app.get("*", (req, res) => {
   res.sendFile(process.cwd() + "/dist/index.html");
 });
