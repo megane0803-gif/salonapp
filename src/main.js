@@ -1,28 +1,53 @@
-// src/main.js
-// フロントエンドからバックエンド(server.js)経由で予約データを取得して表示
+// src/main.js（置き換え）
+function showError(msg) {
+  const el = document.getElementById("error");
+  if (el) el.textContent = msg;
+  console.error(msg);
+}
 
-// ページ読み込み時に実行
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    // APIサーバーから予約データを取得
-    const res = await fetch("/api/reservations");
-    const reservations = await res.json();
+function ensureBox(id) {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`要素 #${id} が見つかりません（index.html を確認）`);
+  return el;
+}
 
-    renderReservations(reservations);
-  } catch (err) {
-    console.error("予約データ取得エラー:", err);
-  }
-});
+async function fetchReservations() {
+  const r = await fetch("/api/reservations");
+  if (!r.ok) throw new Error(`APIエラー /api/reservations status=${r.status}`);
+  return await r.json();
+}
 
-// 予約データを画面に描画
-function renderReservations(reservations) {
-  const container = document.getElementById("day0"); // index.html の <div id="day0">
-  container.innerHTML = "";
+function render(reservations) {
+  const day0 = ensureBox("day0");       // 今日
+  const week0 = ensureBox("week0");     // 今週
+  const month0 = ensureBox("month0");   // 今月
+
+  day0.innerHTML = "";
+  week0.innerHTML = "";
+  month0.innerHTML = "";
+
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   reservations.forEach(r => {
-    const div = document.createElement("div");
-    div.className = "reservation";
-    div.textContent = `${r.start_time} 〜 ${r.end_time} : ${r.service}`;
-    container.appendChild(div);
+    const item = document.createElement("div");
+    item.className = "reservation";
+    item.textContent = `${r.start_time}〜${r.end_time}：${r.service}`;
+
+    // とりあえず全部 today/this week/this month に同じ表示
+    day0.appendChild(item.cloneNode(true));
+    week0.appendChild(item.cloneNode(true));
+    month0.appendChild(item);
   });
+
+  const today = ensureBox("today");
+  today.textContent = todayStr.replace(/-/g, "/");
 }
+
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const data = await fetchReservations();
+    render(data);
+  } catch (e) {
+    showError(e.message);
+  }
+});
