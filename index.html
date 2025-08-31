@@ -1,56 +1,17 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>予約管理システム</title>
-  <link rel="stylesheet" href="./src/style.css" />
-  <link rel="icon" type="image/svg+xml" href="./public/favicon.svg" />
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>📅 予約管理システム</h1>
-      <p>サロン予約の閲覧・作成</p>
-    </header>
-
-    <main>
-      <!-- フォーム -->
-      <section>
-        <h2>新しい予約を作成</h2>
-        <form id="reserveForm">
-          <input type="text" id="customerName" placeholder="お名前" required />
-          <input type="text" id="service" placeholder="メニュー" required />
-          <input type="datetime-local" id="startTime" required />
-          <input type="datetime-local" id="endTime" required />
-          <button type="submit">予約を作成</button>
-        </form>
-      </section>
-
-      <!-- 一覧 -->
-      <section>
-        <h2>予約一覧</h2>
-        <button id="refreshBtn">🔄 更新</button>
-        <table>
-          <thead>
-            <tr>
-              <th>お客様名</th>
-              <th>メニュー</th>
-              <th>開始時刻</th>
-              <th>終了時刻</th>
-            </tr>
-          </thead>
-          <tbody id="reservationsTbody"></tbody>
-        </table>
-      </section>
-    </main>
-
-    <footer>
-      <p>&copy; 2025 予約管理システム</p>
-    </footer>
+  <div id="app">
+    <h1>予約管理システム</h1>
+    <div id="reservations"></div>
   </div>
 
-  <!-- JSを相対パスで呼ぶのが重要！ -->
+  <!-- app.js を読み込む -->
   <script type="module" src="./src/app.js"></script>
 </body>
 </html>
