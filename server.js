@@ -1,41 +1,48 @@
-// server.js
+// server.js（置き換え）
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Pool } from "pg";
+import pkg from "pg";
+
+const { Pool } = pkg;
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
+// 静的ファイル: dist を配信
+app.use(express.static(path.join(__dirname, "dist")));
 
-// --- DB（必要なら使う） ---
+// DB（Neon）接続
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Render/Neon の接続文字列
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-// API例（動作確認用）：/api/health -> {"ok":true}
-app.get("/api/health", async (_req, res) => {
+// 予約一覧API
+app.get("/api/reservations", async (_req, res) => {
   try {
-    await pool.query("select 1");
-    res.json({ ok: true });
+    const { rows } = await pool.query(
+      `SELECT id, customer_name, service,
+              to_char(start_time, 'YYYY/MM/DD HH24:MI') AS start_time,
+              to_char(end_time,   'YYYY/MM/DD HH24:MI') AS end_time
+         FROM reservations
+        ORDER BY start_time ASC
+        LIMIT 200`
+    );
+    res.json(rows);
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
+    console.error(e);
+    res.status(500).json({ error: "db_error" });
   }
 });
 
-// --- 静的配信（Viteのビルド成果物） ---
-const distPath = path.join(__dirname, "dist");
-app.use(express.static(distPath));
-
-// どのパスでも index.html を返す（SPA ルーティング）
+// ルート: dist/index.html を返す
 app.get("*", (_req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-// PORT は Render が注入。なければ 3000
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
