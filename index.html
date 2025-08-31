@@ -2,129 +2,55 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>予約管理システム</title>
-  <!-- ★ CSS は app.js から import するのでここでのCSSリンクは不要 -->
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="./src/style.css" />
+  <link rel="icon" type="image/svg+xml" href="./public/favicon.svg" />
 </head>
 <body>
   <div class="container">
-    <!-- ヘッダー -->
-    <header class="header">
-      <h1><span class="icon">📅</span>予約管理システム</h1>
-      <p class="subtitle">サロン予約の閲覧・作成</p>
+    <header>
+      <h1>📅 予約管理システム</h1>
+      <p>サロン予約の閲覧・作成</p>
     </header>
 
-    <main class="main">
-      <!-- エラー表示 -->
-      <div id="errorArea" class="error-area hidden" role="alert" aria-live="polite">
-        <span class="error-icon">⚠️</span>
-        <span id="errorMessage"></span>
-        <button id="errorClose" class="error-close" aria-label="エラーを閉じる">&times;</button>
-      </div>
-
-      <!-- 成功表示 -->
-      <div id="successArea" class="success-area hidden" role="alert" aria-live="polite">
-        <span class="success-icon">✅</span>
-        <span id="successMessage"></span>
-        <button id="successClose" class="success-close" aria-label="メッセージを閉じる">&times;</button>
-      </div>
-
-      <!-- 予約作成フォーム -->
-      <section class="form-section">
+    <main>
+      <!-- フォーム -->
+      <section>
         <h2>新しい予約を作成</h2>
-        <form id="reserveForm" class="reserve-form" novalidate>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="customerName">お名前 <span class="required">*</span></label>
-              <input type="text" id="customerName" name="customerName" required placeholder="例：山田太郎" aria-describedby="customerNameError"/>
-              <div id="customerNameError" class="field-error hidden" role="alert"></div>
-            </div>
-
-            <div class="form-group">
-              <label for="service">メニュー <span class="required">*</span></label>
-              <div class="service-input-container">
-                <select id="serviceSelect" name="serviceSelect" aria-label="メニュー選択">
-                  <option value="">選択してください</option>
-                  <option value="カット">カット</option>
-                  <option value="カラー">カラー</option>
-                  <option value="パーマ">パーマ</option>
-                  <option value="カット+カラー">カット+カラー</option>
-                  <option value="カット+パーマ">カット+パーマ</option>
-                  <option value="トリートメント">トリートメント</option>
-                  <option value="その他">その他（自由入力）</option>
-                </select>
-                <input type="text" id="service" name="service" required placeholder="または直接入力" aria-describedby="serviceError"/>
-              </div>
-              <div id="serviceError" class="field-error hidden" role="alert"></div>
-            </div>
-
-            <div class="form-group">
-              <label for="startTime">開始時刻 <span class="required">*</span></label>
-              <input type="datetime-local" id="startTime" name="startTime" required aria-describedby="startTimeError"/>
-              <div id="startTimeError" class="field-error hidden" role="alert"></div>
-            </div>
-
-            <div class="form-group">
-              <label for="endTime">終了時刻 <span class="required">*</span></label>
-              <input type="datetime-local" id="endTime" name="endTime" required aria-describedby="endTimeError"/>
-              <div id="endTimeError" class="field-error hidden" role="alert"></div>
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <button type="submit" id="submitBtn" class="btn-primary">
-              <span class="btn-text">予約を作成</span>
-              <span class="btn-spinner hidden" aria-hidden="true">⏳</span>
-            </button>
-            <button type="button" id="resetBtn" class="btn-secondary">リセット</button>
-          </div>
+        <form id="reserveForm">
+          <input type="text" id="customerName" placeholder="お名前" required />
+          <input type="text" id="service" placeholder="メニュー" required />
+          <input type="datetime-local" id="startTime" required />
+          <input type="datetime-local" id="endTime" required />
+          <button type="submit">予約を作成</button>
         </form>
       </section>
 
-      <!-- 予約一覧 -->
-      <section class="table-section">
-        <div class="table-header">
-          <h2>予約一覧</h2>
-          <div class="table-controls">
-            <span id="reservationsCount" class="count-display">件数: 0件</span>
-            <button id="refreshBtn" class="btn-refresh" aria-label="一覧を更新">
-              <span class="refresh-icon">🔄</span>更新
-            </button>
-          </div>
-        </div>
-
-        <div id="loadingArea" class="loading-area">
-          <div class="loading-spinner" aria-label="読み込み中">⏳</div>
-          <p>予約データを読み込んでいます...</p>
-        </div>
-
-        <div class="table-container">
-          <table id="reservationsTable" class="reservations-table">
-            <thead>
-              <tr>
-                <th><button class="sort-btn" data-sort="customer_name">お客様名 <span class="sort-icon"></span></button></th>
-                <th><button class="sort-btn" data-sort="service">メニュー <span class="sort-icon"></span></button></th>
-                <th><button class="sort-btn" data-sort="start_time">開始時刻 <span class="sort-icon active">↑</span></button></th>
-                <th><button class="sort-btn" data-sort="end_time">終了時刻 <span class="sort-icon"></span></button></th>
-              </tr>
-            </thead>
-            <tbody id="reservationsTbody"></tbody>
-          </table>
-
-          <div id="emptyState" class="empty-state hidden">
-            <div class="empty-icon">📝</div>
-            <h3>予約がありません</h3>
-            <p>上記のフォームから新しい予約を作成してください。</p>
-          </div>
-        </div>
+      <!-- 一覧 -->
+      <section>
+        <h2>予約一覧</h2>
+        <button id="refreshBtn">🔄 更新</button>
+        <table>
+          <thead>
+            <tr>
+              <th>お客様名</th>
+              <th>メニュー</th>
+              <th>開始時刻</th>
+              <th>終了時刻</th>
+            </tr>
+          </thead>
+          <tbody id="reservationsTbody"></tbody>
+        </table>
       </section>
     </main>
 
-    <footer class="footer"><p>&copy; 2025 予約管理システム</p></footer>
+    <footer>
+      <p>&copy; 2025 予約管理システム</p>
+    </footer>
   </div>
 
-  <!-- ★ Vite 形式：開発時は /src/app.js を読み、ビルド時は自動で書き換えられます -->
-  <script type="module" src="/src/app.js"></script>
+  <!-- JSを相対パスで呼ぶのが重要！ -->
+  <script type="module" src="./src/app.js"></script>
 </body>
 </html>
