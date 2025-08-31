@@ -1,26 +1,27 @@
-// server.js
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ヘルスチェック
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({ ok: true });
+});
 
-// ビルド成果物があれば配信（dist）
+// dist（ビルド成果物）を配信
 const distDir = path.join(__dirname, 'dist');
-if (fs.existsSync(distDir)) {
-  app.use(express.static(distDir));
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(distDir, 'index.html'));
-  });
-} else {
-  // distが無い場合でも起動は成功させる（まずは配信確認用）
-  app.get('*', (_req, res) => res.send('OK – server up'));
-}
+app.use(express.static(distDir));
+
+// ルーティング（SPA想定）：どのパスでも index.html を返す
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(distDir, 'index.html'));
+});
 
 app.listen(PORT, () => {
-  console.log(`Listening on ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });
