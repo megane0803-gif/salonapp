@@ -1,53 +1,44 @@
-// src/main.js（置き換え）
-function showError(msg) {
-  const el = document.getElementById("error");
-  if (el) el.textContent = msg;
-  console.error(msg);
-}
-
-function ensureBox(id) {
-  const el = document.getElementById(id);
-  if (!el) throw new Error(`要素 #${id} が見つかりません（index.html を確認）`);
-  return el;
-}
-
-async function fetchReservations() {
-  const r = await fetch("/api/reservations");
-  if (!r.ok) throw new Error(`APIエラー /api/reservations status=${r.status}`);
-  return await r.json();
-}
-
-function render(reservations) {
-  const day0 = ensureBox("day0");       // 今日
-  const week0 = ensureBox("week0");     // 今週
-  const month0 = ensureBox("month0");   // 今月
-
-  day0.innerHTML = "";
-  week0.innerHTML = "";
-  month0.innerHTML = "";
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  reservations.forEach(r => {
-    const item = document.createElement("div");
-    item.className = "reservation";
-    item.textContent = `${r.start_time}〜${r.end_time}：${r.service}`;
-
-    // とりあえず全部 today/this week/this month に同じ表示
-    day0.appendChild(item.cloneNode(true));
-    week0.appendChild(item.cloneNode(true));
-    month0.appendChild(item);
-  });
-
-  const today = ensureBox("today");
-  today.textContent = todayStr.replace(/-/g, "/");
-}
-
-document.addEventListener("DOMContentLoaded", async () => {
+async function load() {
+  const el = document.getElementById('app');
   try {
-    const data = await fetchReservations();
-    render(data);
+    const res = await fetch('/api/reservations', { cache: 'no-store' });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      el.textContent = '予約はまだありません。';
+      el.className = 'empty';
+      return;
+    }
+
+    const rows = data
+      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+      .map(r => {
+        const start = new Date(r.start_time);
+        const end   = new Date(r.end_time);
+        const fmt = (d)=> d.toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        return `<tr>
+          <td>${r.id}</td>
+          <td>${r.customer_name}</td>
+          <td>${r.service}</td>
+          <td>${fmt(start)}</td>
+          <td>${fmt(end)}</td>
+        </tr>`;
+      }).join('');
+
+    el.className = '';
+    el.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>ID</th><th>お客様</th><th>メニュー</th><th>開始</th><th>終了</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
   } catch (e) {
-    showError(e.message);
+    el.textContent = '読み込みに失敗しました: ' + e.message;
+    el.className = 'empty';
   }
-});
+}
+
+load();
