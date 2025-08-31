@@ -1,28 +1,20 @@
-# ---- build stage ----
-FROM node:20-bullseye AS build
+# Node公式イメージ
+FROM node:18
+
+# 作業ディレクトリ
 WORKDIR /app
 
-# lockfile が無くても通るように npm install を使用
+# package.json だけコピー
 COPY package*.json ./
-RUN npm install --no-audit --no-fund
 
+# 依存関係をインストール
+RUN npm install
+
+# ソースコードをコピー
 COPY . .
-# dist は無くても先に進む（まずは起動優先）
-RUN npm run build || true
 
-# ---- run stage ----
-FROM node:20-bullseye AS run
-WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=3000
+# 本番ビルド
+RUN npm run build
 
-COPY package*.json ./
-# 本番は dev 省略してインストール
-RUN npm install --omit=dev --no-audit --no-fund
-
-# 実行に必要な成果物/ファイル
-COPY --from=build /app/dist ./dist
-COPY server.js ./server.js
-
-EXPOSE 3000
-CMD ["npm","start"]
+# アプリを起動
+CMD ["npm", "start"]
